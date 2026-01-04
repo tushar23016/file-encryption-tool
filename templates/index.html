@@ -1,28 +1,39 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>File Encryption Tool</title>
+    <meta charset="UTF-8">
+    <title>Secure File Vault</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-
 </head>
 <body>
 
-<h1>🔐 File Encryption & Decryption Tool</h1>
+<div class="container">
+    <h1>🔐 Secure File Vault</h1>
+    <p class="subtitle">Encrypt & Decrypt your files safely</p>
 
-<div class="box">
-    <h2>Encrypt File</h2>
-    <form action="/encrypt" method="post" enctype="multipart/form-data">
-        <input type="file" name="file" required>
-        <button type="submit">Encrypt</button>
-    </form>
-</div>
+    <div class="cards">
 
-<div class="box">
-    <h2>Decrypt File</h2>
-    <form action="/decrypt" method="post" enctype="multipart/form-data">
-        <input type="file" name="file" required>
-        <button type="submit">Decrypt</button>
-    </form>
+        <div class="card">
+            <h2>Encrypt File</h2>
+            <form action="/encrypt" method="post" enctype="multipart/form-data">
+                <input type="file" name="file" required>
+                <button type="submit">Encrypt</button>
+            </form>
+        </div>
+
+        <div class="card">
+            <h2>Decrypt File</h2>
+            <form action="/decrypt" method="post" enctype="multipart/form-data">
+                <input type="file" name="file" required>
+                <button type="submit">Decrypt</button>
+            </form>
+        </div>
+
+    </div>
+
+    <footer>
+        <p>Minor Project | File Security using Cryptography</p>
+    </footer>
 </div>
 
 </body>
