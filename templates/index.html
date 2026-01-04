@@ -9,26 +9,55 @@
 
 <div class="container">
     <h1>🔐 Secure File Vault</h1>
-    <p class="subtitle">Encrypt & Decrypt your files safely</p>
+    <p class="subtitle">
+        Password-Based File Encryption & Decryption using Cryptography
+    </p>
 
     <div class="cards">
 
+        <!-- Encrypt Card -->
         <div class="card">
             <h2>Encrypt File</h2>
             <form action="/encrypt" method="post" enctype="multipart/form-data">
                 <input type="file" name="file" required>
+                <input
+                    type="password"
+                    name="password"
+                    placeholder="Enter encryption password"
+                    required
+                >
                 <button type="submit">Encrypt</button>
             </form>
         </div>
 
+        <!-- Decrypt Card -->
         <div class="card">
             <h2>Decrypt File</h2>
             <form action="/decrypt" method="post" enctype="multipart/form-data">
                 <input type="file" name="file" required>
+                <input
+                    type="password"
+                    name="password"
+                    placeholder="Enter same password to decrypt"
+                    required
+                >
                 <button type="submit">Decrypt</button>
             </form>
         </div>
 
+    </div>
+
+    <!-- Cryptography Info Panel (Examiner-Focused) -->
+    <div class="crypto-info">
+        <h3>🔐 Encryption Algorithm Details</h3>
+        <ul>
+            <li><strong>Encryption Algorithm:</strong> AES-128 (Fernet)</li>
+            <li><strong>Encryption Type:</strong> Symmetric Encryption</li>
+            <li><strong>Key Derivation:</strong> PBKDF2 with SHA-256</li>
+            <li><strong>Salt:</strong> Random 16-byte salt per file</li>
+            <li><strong>Iterations:</strong> 100,000</li>
+            <li><strong>Integrity:</strong> HMAC Authentication</li>
+        </ul>
     </div>
 
     <footer>

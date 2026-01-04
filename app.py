@@ -1,76 +1,117 @@
-from flask import Flask, render_template, request, send_file, redirect, url_for
-from cryptography.fernet import Fernet
+from flask import Flask, render_template, request, send_file
 import os
+import io
+import base64
+
+from cryptography.fernet import Fernet
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
+
+"""
+---------------------------------------------------------
+Secure File Vault – Backend Logic
+---------------------------------------------------------
+Encryption Algorithm : AES-128 (Fernet)
+Key Derivation       : PBKDF2 with SHA-256
+Salt                : Random 16 bytes (per file)
+Iterations           : 100,000
+Encryption Type      : Symmetric Encryption
+Integrity            : HMAC Authentication
+---------------------------------------------------------
+"""
 
 app = Flask(__name__)
 app.secret_key = "minor_project_secret"
 
+# Create upload directory (not mandatory, but safe)
+UPLOAD_FOLDER = "uploads"
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
-UPLOAD_FOLDER = 'uploads'
-ENCRYPTED_FOLDER = 'encrypted'
-DECRYPTED_FOLDER = 'decrypted'
-KEY_FOLDER = 'keys'
-KEY_PATH = os.path.join(KEY_FOLDER, 'key.key')
 
-# Create required folders
-for folder in [UPLOAD_FOLDER, ENCRYPTED_FOLDER, DECRYPTED_FOLDER, KEY_FOLDER]:
-    os.makedirs(folder, exist_ok=True)
+def generate_key(password: str, salt: bytes) -> bytes:
+    """
+    Generates a cryptographic key from a password using PBKDF2.
 
-# Generate key once
-if not os.path.exists(KEY_PATH):
-    key = Fernet.generate_key()
-    with open(KEY_PATH, "wb") as key_file:
-        key_file.write(key)
+    Parameters:
+    - password: User-provided password
+    - salt: Random salt (16 bytes)
 
-with open(KEY_PATH, "rb") as k:
-    key = k.read()
+    Returns:
+    - Base64 encoded 32-byte key suitable for Fernet
+    """
+    kdf = PBKDF2HMAC(
+        algorithm=hashes.SHA256(),
+        length=32,              # Fernet requires 32-byte key
+        salt=salt,
+        iterations=100000       # Industry-recommended iteration count
+    )
+    return base64.urlsafe_b64encode(
+        kdf.derive(password.encode())
+    )
 
-fernet = Fernet(key)
 
 @app.route("/")
 def index():
     return render_template("index.html")
 
+
 @app.route("/encrypt", methods=["POST"])
 def encrypt():
-    if "file" not in request.files or request.files["file"].filename == "":
-        return redirect(url_for("index"))
-
     file = request.files["file"]
-    file_path = os.path.join(UPLOAD_FOLDER, file.filename)
-    file.save(file_path)
+    password = request.form["password"]
 
-    with open(file_path, "rb") as f:
-        data = f.read()
+    # Read original file data
+    data = file.read()
 
-    encrypted = fernet.encrypt(data)
-    enc_path = os.path.join(ENCRYPTED_FOLDER, file.filename + ".enc")
+    # Generate random salt for this file
+    salt = os.urandom(16)
 
-    with open(enc_path, "wb") as e:
-        e.write(encrypted)
+    # Derive encryption key from password + salt
+    key = generate_key(password, salt)
+    fernet = Fernet(key)
 
-    return send_file(enc_path, as_attachment=True)
+    # Encrypt data
+    encrypted_data = fernet.encrypt(data)
+
+    # Store salt + encrypted content together
+    final_data = salt + encrypted_data
+
+    return send_file(
+        io.BytesIO(final_data),
+        as_attachment=True,
+        download_name=file.filename + ".enc"
+    )
+
 
 @app.route("/decrypt", methods=["POST"])
 def decrypt():
-    if "file" not in request.files or request.files["file"].filename == "":
-        return redirect(url_for("index"))
-
     file = request.files["file"]
-    enc_path = os.path.join(ENCRYPTED_FOLDER, file.filename)
-    file.save(enc_path)
+    password = request.form["password"]
 
-    with open(enc_path, "rb") as f:
-        encrypted = f.read()
+    # Read encrypted file
+    file_data = file.read()
 
-    decrypted = fernet.decrypt(encrypted)
-    dec_filename = file.filename.replace(".enc", "")
-    dec_path = os.path.join(DECRYPTED_FOLDER, "decrypted_" + dec_filename)
+    # Extract salt and encrypted payload
+    salt = file_data[:16]
+    encrypted_data = file_data[16:]
 
-    with open(dec_path, "wb") as d:
-        d.write(decrypted)
+    # Regenerate key using same password + salt
+    key = generate_key(password, salt)
+    fernet = Fernet(key)
 
-    return send_file(dec_path, as_attachment=True)
+    try:
+        decrypted_data = fernet.decrypt(encrypted_data)
+    except Exception:
+        # Authentication failed (wrong password or tampered file)
+        return "❌ Wrong password or corrupted file"
+
+    return send_file(
+        io.BytesIO(decrypted_data),
+        as_attachment=True,
+        download_name=file.filename.replace(".enc", "")
+    )
+
 
 if __name__ == "__main__":
+    # For local testing
     app.run(host="0.0.0.0", port=5000)
